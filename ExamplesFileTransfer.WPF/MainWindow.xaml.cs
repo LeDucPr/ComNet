@@ -17,31 +17,21 @@
 // under the License.
 // 
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using System.IO;
-using System.Net;
 using Microsoft.Win32;
-using System.Threading.Tasks;
-using System.Collections.ObjectModel;
-
 using NetworkCommsDotNet;
-using NetworkCommsDotNet.DPSBase;
-using NetworkCommsDotNet.Tools;
-using NetworkCommsDotNet.DPSBase.SevenZipLZMACompressor;
 using NetworkCommsDotNet.Connections;
 using NetworkCommsDotNet.Connections.TCP;
+using NetworkCommsDotNet.DPSBase;
+using NetworkCommsDotNet.Tools;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
 
 namespace Examples.ExamplesFileTransfer.WPF
 {
@@ -105,46 +95,41 @@ namespace Examples.ExamplesFileTransfer.WPF
         /// <param name="logLine"></param>
         private void AddLineToLog(string logLine)
         {
-            //Use dispatcher incase method is not called from GUI thread
-            logBox.Dispatcher.BeginInvoke(new Action(() =>
+            logBox.Dispatcher.BeginInvoke(new Action(() => // mở thread ui riêng 
             {
                 logBox.Text += DateTime.Now.ToShortTimeString() + " - " + logLine + "\n";
-
-                //Update the scroller so that we are always at the bottom
-                scroller.ScrollToBottom();
+                scroller.ScrollToBottom(); // Kéo thanh cuộn xuống dưới cùng
             }));
         }
 
         /// <summary>
-        /// Updates the send file progress bar
+        /// Chạy thanh update (cái này chỉ thấy rõ khi gửi file nặng trong khi phân mảnh)
         /// </summary>
         /// <param name="percentComplete"></param>
         private void UpdateSendProgress(double percentComplete)
         {
-            //Use dispatcher incase method is not called from GUI thread
-            sendProgress.Dispatcher.BeginInvoke(new Action(() =>
+            sendProgress.Dispatcher.BeginInvoke(new Action(() => // mở luồng ui riêng
             {
                 sendProgress.Value = percentComplete;
             }));
         }
 
         /// <summary>
-        /// Adds a new ReceivedFile to the list box data context
+        /// thêm thông tin nhận được vào log 
         /// </summary>
         /// <param name="file"></param>
         private void AddNewReceivedItem(ReceivedFile file)
         {
-            //Use dispatcher incase method is not called from GUI thread
-            lbReceivedFiles.Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    receivedFiles.Add(file);
-                }));
+            lbReceivedFiles.Dispatcher.BeginInvoke(new Action(() => // mở luồng ui riêng
+            {
+                receivedFiles.Add(file);
+            }));
         }
         #endregion
 
         #region GUI Events
         /// <summary>
-        /// Delete the selected ReceivedFile from the application
+        /// Nếu nhấn xóa file thì xóa file đó khỏi listbox
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -171,7 +156,7 @@ namespace Examples.ExamplesFileTransfer.WPF
         }
 
         /// <summary>
-        /// Save the selected file to disk
+        /// Save to disk
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -194,41 +179,61 @@ namespace Examples.ExamplesFileTransfer.WPF
             }
         }
 
-        /// <summary>
-        /// Toggles the use of compression for sending files
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void UseCompression_Changed(object sender, RoutedEventArgs e)
+        ///// <summary>
+        ///// Toggles the use of compression for sending files
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //private void UseCompression_Changed(object sender, RoutedEventArgs e)
+        //{
+        //    if (this.UseCompression.IsChecked == true)
+        //    {
+        //        //Set the customOptions to use ProtobufSerializer as a serialiser and LZMACompressor as the only data processor
+        //        customOptions = new SendReceiveOptions<ProtobufSerializer, LZMACompressor>();
+        //        AddLineToLog("Enabled compression.");
+        //    }
+        //    else if (this.UseCompression.IsChecked == false)
+        //    {
+        //        //Set the customOptions to use ProtobufSerializer as a serialiser without any data processors
+        //        customOptions = new SendReceiveOptions<ProtobufSerializer>();
+        //        AddLineToLog("Disabled compression.");
+        //    }
+        //}
+
+        private void IpsBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        { // copy vào trong thằng clipboard giống như khi nhấn ctrl + c
+            if (ipsBox.SelectedItem is ComboBoxItem selectedItem)
+                Clipboard.SetText(selectedItem.Content.ToString());
+        }
+        private void AddNewItem_Click(object sender, RoutedEventArgs e)
         {
-            if (this.UseCompression.IsChecked == true)
-            {
-                //Set the customOptions to use ProtobufSerializer as a serialiser and LZMACompressor as the only data processor
-                customOptions = new SendReceiveOptions<ProtobufSerializer, LZMACompressor>();
-                AddLineToLog("Enabled compression.");
-            }
-            else if (this.UseCompression.IsChecked == false)
-            {
-                //Set the customOptions to use ProtobufSerializer as a serialiser without any data processors
-                customOptions = new SendReceiveOptions<ProtobufSerializer>();
-                AddLineToLog("Disabled compression.");
-            }
+            string newItem = "New Item"; // Hoặc bạn có thể mở một dialog để nhập giá trị mới
+            remoteIPs.Items.Add(newItem);
+        }
+        private void RemoveItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is string item)
+                remoteIPs.Items.Remove(item);
+        }
+        private void RemoteIPs_DropDownOpened(object sender, EventArgs e)
+        {
+            // Thêm một mục mới với TextBox và Button khi ComboBox được mở
+            if (!remoteIPs.Items.Contains("Add New Item"))
+                remoteIPs.Items.Add("Add New Item");
         }
 
         /// <summary>
-        /// Correctly shutdown NetworkComms.Net if the application is closed
+        /// Khi nào đóng thì clear hết file
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            //Close all files
-            lock (syncRoot)
+            lock (syncRoot) //Close all files
             {
                 foreach (ReceivedFile file in receivedFiles)
                     file.Close();
             }
-
             windowClosing = true;
             NetworkComms.Shutdown();
         }
@@ -240,27 +245,27 @@ namespace Examples.ExamplesFileTransfer.WPF
         /// </summary>
         private void StartListening()
         {
-            //Trigger IncomingPartialFileData method if we receive a packet of type 'PartialFileData'
-            NetworkComms.AppendGlobalIncomingPacketHandler<byte[]>("PartialFileData", IncomingPartialFileData);
-            //Trigger IncomingPartialFileDataInfo method if we receive a packet of type 'PartialFileDataInfo'
-            NetworkComms.AppendGlobalIncomingPacketHandler<SendInfo>("PartialFileDataInfo", IncomingPartialFileDataInfo);
-
-            //Trigger the method OnConnectionClose so that we can do some clean-up
-            NetworkComms.AppendGlobalConnectionCloseHandler(OnConnectionClose);
-
-            //Start listening for TCP connections
-            //We want to select a random port on all available adaptors so provide 
-            //an IPEndPoint using IPAddress.Any and port 0.
+            NetworkComms.AppendGlobalIncomingPacketHandler<byte[]>("PartialFileData", IncomingPartialFileData); // Kiểu file ngắn cho phép không đóng gói 
+            NetworkComms.AppendGlobalIncomingPacketHandler<SendInfo>("PartialFileDataInfo", IncomingPartialFileDataInfo); // Kiểu phân mảnh 
+            NetworkComms.AppendGlobalConnectionCloseHandler(OnConnectionClose); // OnConnectionClose = GC
+            // Random port + IpAddress.Any (mở cổng bất kỳ để tránh trùng)
             Connection.StartListening(ConnectionType.TCP, new IPEndPoint(IPAddress.Any, 0));
-
-            //Write out some useful debugging information the log window
+            // Ghi log (mở kết nối)
             AddLineToLog("Initialised WPF file transfer example. Accepting TCP connections on:");
             foreach (IPEndPoint listenEndPoint in Connection.ExistingLocalListenEndPoints(ConnectionType.TCP))
                 AddLineToLog(listenEndPoint.Address + ":" + listenEndPoint.Port);
+            // thêm thông tin vào trong ipsBox
+            foreach (IPEndPoint listenEndPoint in Connection.ExistingLocalListenEndPoints(ConnectionType.TCP))
+            {
+                ComboBoxItem item = new ComboBoxItem();
+                item.Content = listenEndPoint.Address + ":" + listenEndPoint.Port;
+                ipsBox.Items.Add(item);
+            }
         }
 
         /// <summary>
-        /// Handles an incoming packet of type 'PartialFileData'
+        /// Xử lý các bọc được gửi dưới dạng 
+        /// <byte[]>("PartialFileData", IncomingPartialFileData);
         /// </summary>
         /// <param name="header">Header associated with incoming packet</param>
         /// <param name="connection">The connection associated with incoming packet</param>
@@ -271,49 +276,34 @@ namespace Examples.ExamplesFileTransfer.WPF
             {
                 SendInfo info = null;
                 ReceivedFile file = null;
-
-                //Perform this in a thread safe way
-                lock (syncRoot)
+                lock (syncRoot) // tránh lúc đang gửi có thằng nào đá vào 
                 {
-                    //Extract the packet sequence number from the header
-                    //The header can also user defined parameters
-                    long sequenceNumber = header.GetOption(PacketHeaderLongItems.PacketSequenceNumber);
-
+                    long sequenceNumber = header.GetOption(PacketHeaderLongItems.PacketSequenceNumber); // lấy thông số từ mảnh đầu vào 
                     if (incomingDataInfoCache.ContainsKey(connection.ConnectionInfo) && incomingDataInfoCache[connection.ConnectionInfo].ContainsKey(sequenceNumber))
                     {
-                        //We have the associated SendInfo so we can add this data directly to the file
-                        info = incomingDataInfoCache[connection.ConnectionInfo][sequenceNumber];
+                        info = incomingDataInfoCache[connection.ConnectionInfo][sequenceNumber]; // gộp mảnh 
                         incomingDataInfoCache[connection.ConnectionInfo].Remove(sequenceNumber);
-
-                        //Check to see if we have already received any files from this location
+                        // Check coi có chưa, chưa có thì tạo mới đầu mục 
                         if (!receivedFilesDict.ContainsKey(connection.ConnectionInfo))
                             receivedFilesDict.Add(connection.ConnectionInfo, new Dictionary<string, ReceivedFile>());
-
-                        //Check to see if we have already initialised this file
-                        if (!receivedFilesDict[connection.ConnectionInfo].ContainsKey(info.Filename))
+                        if (!receivedFilesDict[connection.ConnectionInfo].ContainsKey(info.Filename)) // đã có 
                         {
                             receivedFilesDict[connection.ConnectionInfo].Add(info.Filename, new ReceivedFile(info.Filename, connection.ConnectionInfo, info.TotalBytes));
                             AddNewReceivedItem(receivedFilesDict[connection.ConnectionInfo][info.Filename]);
                         }
-
                         file = receivedFilesDict[connection.ConnectionInfo][info.Filename];
                     }
                     else
                     {
-                        //We do not yet have the associated SendInfo so we just add the data to the cache
+                        // Đá tạm vào ram nếu chưa có đầu mục SendInfo
                         if (!incomingDataCache.ContainsKey(connection.ConnectionInfo))
                             incomingDataCache.Add(connection.ConnectionInfo, new Dictionary<long, byte[]>());
-
                         incomingDataCache[connection.ConnectionInfo].Add(sequenceNumber, data);
                     }
                 }
-
-                //If we have everything we need we can add data to the ReceivedFile
-                if (info != null && file != null && !file.IsCompleted)
+                if (info != null && file != null && !file.IsCompleted) // có thể thêm dữ liệu vào trong ReceivedFile như cách làm byte[] Concat
                 {
                     file.AddData(info.BytesStart, 0, data.Length, data);
-
-                    //Perform a little clean-up
                     file = null;
                     data = null;
                     GC.Collect();
@@ -323,14 +313,14 @@ namespace Examples.ExamplesFileTransfer.WPF
             }
             catch (Exception ex)
             {
-                //If an exception occurs we write to the log window and also create an error file
-                AddLineToLog("Exception - " + ex.ToString());
+                AddLineToLog("Exception - " + ex.ToString()); // tạo lỗi cho bọc truyền đi 
                 LogTools.LogException(ex, "IncomingPartialFileDataError");
             }
         }
 
         /// <summary>
-        /// Handles an incoming packet of type 'PartialFileDataInfo'
+        /// Xử lý các bọc được gửi dưới dạng 
+        /// <SendInfo>("PartialFileDataInfo", IncomingPartialFileDataInfo)
         /// </summary>
         /// <param name="header">Header associated with incoming packet</param>
         /// <param name="connection">The connection associated with incoming packet</param>
@@ -341,50 +331,33 @@ namespace Examples.ExamplesFileTransfer.WPF
             {
                 byte[] data = null;
                 ReceivedFile file = null;
-
-                //Perform this in a thread safe way
-                lock (syncRoot)
+                lock (syncRoot) // tránh lúc đang gửi có thằng nào đá vào 
                 {
-                    //Extract the packet sequence number from the header
-                    //The header can also user defined parameters
-                    long sequenceNumber = info.PacketSequenceNumber;
-
+                    long sequenceNumber = info.PacketSequenceNumber; // info của thằng SendInfo đầu vào 
                     if (incomingDataCache.ContainsKey(connection.ConnectionInfo) && incomingDataCache[connection.ConnectionInfo].ContainsKey(sequenceNumber))
                     {
-                        //We already have the associated data in the cache
                         data = incomingDataCache[connection.ConnectionInfo][sequenceNumber];
                         incomingDataCache[connection.ConnectionInfo].Remove(sequenceNumber);
-
-                        //Check to see if we have already received any files from this location
-                        if (!receivedFilesDict.ContainsKey(connection.ConnectionInfo))
+                        if (!receivedFilesDict.ContainsKey(connection.ConnectionInfo)) // coi mảnh trước có tồn tại không 
                             receivedFilesDict.Add(connection.ConnectionInfo, new Dictionary<string, ReceivedFile>());
-
-                        //Check to see if we have already initialised this file
-                        if (!receivedFilesDict[connection.ConnectionInfo].ContainsKey(info.Filename))
+                        if (!receivedFilesDict[connection.ConnectionInfo].ContainsKey(info.Filename)) // nếu có 
                         {
                             receivedFilesDict[connection.ConnectionInfo].Add(info.Filename, new ReceivedFile(info.Filename, connection.ConnectionInfo, info.TotalBytes));
                             AddNewReceivedItem(receivedFilesDict[connection.ConnectionInfo][info.Filename]);
                         }
-
-                        file = receivedFilesDict[connection.ConnectionInfo][info.Filename];
+                        file = receivedFilesDict[connection.ConnectionInfo][info.Filename]; // chưa có thì thêm mới 
                     }
                     else
                     {
-                        //We do not yet have the necessary data corresponding with this SendInfo so we add the
-                        //info to the cache
+                        // đá tam vào ram nếu chưa có đầu mục ReceiveFile cho phép truyền dần về máy 
                         if (!incomingDataInfoCache.ContainsKey(connection.ConnectionInfo))
                             incomingDataInfoCache.Add(connection.ConnectionInfo, new Dictionary<long, SendInfo>());
-
                         incomingDataInfoCache[connection.ConnectionInfo].Add(sequenceNumber, info);
                     }
                 }
-
-                //If we have everything we need we can add data to the ReceivedFile
-                if (data != null && file != null && !file.IsCompleted)
+                if (data != null && file != null && !file.IsCompleted) // byte concat 
                 {
                     file.AddData(info.BytesStart, 0, data.Length, data);
-
-                    //Perform a little clean-up
                     file = null;
                     data = null;
                     GC.Collect();
@@ -394,14 +367,13 @@ namespace Examples.ExamplesFileTransfer.WPF
             }
             catch (Exception ex)
             {
-                //If an exception occurs we write to the log window and also create an error file
-                AddLineToLog("Exception - " + ex.ToString());
+                AddLineToLog("Exception - " + ex.ToString()); // lỗi khi xử lý hoặc khởi tạo các bọc 
                 LogTools.LogException(ex, "IncomingPartialFileDataInfo");
             }
         }
 
         /// <summary>
-        /// If a connection is closed we clean-up any incomplete ReceivedFiles
+        /// Connect đóng thì cũng thu dọn luôn 
         /// </summary>
         /// <param name="conn">The closed connection</param>
         private void OnConnectionClose(Connection conn)
@@ -410,40 +382,33 @@ namespace Examples.ExamplesFileTransfer.WPF
 
             lock (syncRoot)
             {
-                //Remove any associated data from the caches
-                incomingDataCache.Remove(conn.ConnectionInfo);
+                incomingDataCache.Remove(conn.ConnectionInfo); // xóa cache 
                 incomingDataInfoCache.Remove(conn.ConnectionInfo);
-
-                //Remove any non completed files
+                // thằng nào lỗi cũng clear luôn 
                 if (receivedFilesDict.ContainsKey(conn.ConnectionInfo))
                 {
                     filesToRemove = (from current in receivedFilesDict[conn.ConnectionInfo] where !current.Value.IsCompleted select current.Value).ToArray();
                     receivedFilesDict[conn.ConnectionInfo] = (from current in receivedFilesDict[conn.ConnectionInfo] where current.Value.IsCompleted select current).ToDictionary(entry => entry.Key, entry => entry.Value);
                 }
             }
-
             //Update the GUI
             lbReceivedFiles.Dispatcher.BeginInvoke(new Action(() =>
             {
                 lock (syncRoot)
                 {
                     if (filesToRemove != null)
-                    {
                         foreach (ReceivedFile file in filesToRemove)
                         {
                             receivedFiles.Remove(file);
                             file.Close();
                         }
-                    }
                 }
             }));
-
-            //Write some useful information the log window
-            AddLineToLog("Connection closed with " + conn.ConnectionInfo.ToString());
+            AddLineToLog("Connection closed with " + conn.ConnectionInfo.ToString()); // ghi log
         }
 
         /// <summary>
-        /// Sends requested file to the remoteIP and port set in GUI
+        /// Gửi bọc cần xử lý 
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -452,113 +417,62 @@ namespace Examples.ExamplesFileTransfer.WPF
             //Create an OpenFileDialog so that we can request the file to send
             OpenFileDialog openDialog = new OpenFileDialog();
             openDialog.Multiselect = false;
-
-            //If a file was selected
             if (openDialog.ShowDialog() == true)
             {
                 //Disable the send and compression buttons
                 sendFileButton.IsEnabled = false;
-                UseCompression.IsEnabled = false;
+                //UseCompression.IsEnabled = false;
 
-                //Parse the necessary remote information
                 string filename = openDialog.FileName;
-                string remoteIP = this.remoteIP.Text;
-                string remotePort = this.remotePort.Text;
+                string selectedRemoteIP = remoteIPs.SelectedItem.ToString();
+                string[] ipPort = selectedRemoteIP.Split(':');
+                string remoteIP = ipPort[0];
+                string remotePort = ipPort[1];
 
-                //Set the send progress bar to 0
-                UpdateSendProgress(0);
 
-                //Perform the send in a task so that we don't lock the GUI
-                Task.Factory.StartNew(() =>
+                UpdateSendProgress(0); //Set the send progress bar to 0
+                Task.Factory.StartNew(() => //Perform the send in a task so that we don't lock the GUI
                 {
                     try
                     {
-                        //Create a fileStream from the selected file
                         FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-
-                        //Wrap the fileStream in a threadSafeStream so that future operations are thread safe
                         StreamTools.ThreadSafeStream safeStream = new StreamTools.ThreadSafeStream(stream);
-
-                        //Get the filename without the associated path information
                         string shortFileName = System.IO.Path.GetFileName(filename);
-
-                        //Parse the remote connectionInfo
-                        //We have this in a separate try catch so that we can write a clear message to the log window
-                        //if there are problems
                         ConnectionInfo remoteInfo;
-                        try
-                        {
-                            remoteInfo = new ConnectionInfo(remoteIP, int.Parse(remotePort));
-                        }
-                        catch (Exception)
-                        {
-                            throw new InvalidDataException("Failed to parse remote IP and port. Check and try again.");
-                        }
-
-                        //Get a connection to the remote side
-                        Connection connection = TCPConnection.GetConnection(remoteInfo);
-
-                        //Break the send into 20 segments. The less segments the less overhead 
-                        //but we still want the progress bar to update in sensible steps
-                        long sendChunkSizeBytes = (long)(stream.Length / 20.0) + 1;
-
-                        //Limit send chunk size to 500MB
-                        long maxChunkSizeBytes = 500L*1024L*1024L;
+                        try { remoteInfo = new ConnectionInfo(remoteIP, int.Parse(remotePort)); }
+                        catch (Exception) { throw new InvalidDataException("Failed to parse remote IP and port. Check and try again."); }
+                        Connection connection = TCPConnection.GetConnection(remoteInfo); // tạo kết nối 
+                        long sendChunkSizeBytes = (long)(stream.Length / 20.0) + 1; // phân mảnh
+                        long maxChunkSizeBytes = 500L * 1024L * 1024L; // kích thước tối đa cho một mảnh 
                         if (sendChunkSizeBytes > maxChunkSizeBytes) sendChunkSizeBytes = maxChunkSizeBytes;
-
                         long totalBytesSent = 0;
                         do
                         {
-                            //Check the number of bytes to send as the last one may be smaller
                             long bytesToSend = (totalBytesSent + sendChunkSizeBytes < stream.Length ? sendChunkSizeBytes : stream.Length - totalBytesSent);
-
-                            //Wrap the threadSafeStream in a StreamSendWrapper so that we can get NetworkComms.Net
-                            //to only send part of the stream.
-                            StreamTools.StreamSendWrapper streamWrapper = new StreamTools.StreamSendWrapper(safeStream, totalBytesSent, bytesToSend);
-
-                            //We want to record the packetSequenceNumber
+                            StreamTools.StreamSendWrapper streamWrapper = new StreamTools.StreamSendWrapper(safeStream, totalBytesSent, bytesToSend); // đóng gói 
                             long packetSequenceNumber;
-                            //Send the select data
                             connection.SendObject("PartialFileData", streamWrapper, customOptions, out packetSequenceNumber);
-                            //Send the associated SendInfo for this send so that the remote can correctly rebuild the data
                             connection.SendObject("PartialFileDataInfo", new SendInfo(shortFileName, stream.Length, totalBytesSent, packetSequenceNumber), customOptions);
-
-                            totalBytesSent += bytesToSend;
-
-                            //Update the GUI with our send progress
+                            totalBytesSent += bytesToSend; // lượng đã gửi 
                             UpdateSendProgress((double)totalBytesSent / stream.Length);
                         } while (totalBytesSent < stream.Length);
-
-                        //Clean up any unused memory
-                        GC.Collect();
-
+                        GC.Collect(); // garbage collection
                         AddLineToLog("Completed file send to '" + connection.ConnectionInfo.ToString() + "'.");
                     }
-                    catch (CommunicationException)
-                    {
-                        //If there is a communication exception then we just write a connection
-                        //closed message to the log window
-                        AddLineToLog("Failed to complete send as connection was closed.");
-                    }
+                    catch (CommunicationException) { AddLineToLog("Failed to complete send as connection was closed."); } // lỗi gửi thường do data quá lớn 
                     catch (Exception ex)
                     {
-                        //If we get any other exception which is not an InvalidDataException
-                        //we log the error
-                        if (!windowClosing && ex.GetType() != typeof(InvalidDataException))
+                        if (!windowClosing && ex.GetType() != typeof(InvalidDataException)) // sự kiện khi đóng form 
                         {
                             AddLineToLog(ex.Message.ToString());
                             LogTools.LogException(ex, "SendFileError");
                         }
                     }
-
-                    //Once the send is finished reset the send progress bar
-                    UpdateSendProgress(0);
-
-                    //Once complete enable the send button again
-                    sendFileButton.Dispatcher.BeginInvoke(new Action(() =>
+                    UpdateSendProgress(0); //Once the send is finished reset the send progress bar
+                    sendFileButton.Dispatcher.BeginInvoke(new Action(() => //Once complete enable the send button again
                     {
                         sendFileButton.IsEnabled = true;
-                        UseCompression.IsEnabled = true;
+                        //UseCompression.IsEnabled = true;
                     }));
                 });
             }
