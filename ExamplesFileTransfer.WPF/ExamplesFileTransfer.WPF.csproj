@@ -62,6 +62,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Queues\QueueBasic.cs" />
     <Compile Include="ReceivedFile.cs" />
     <Compile Include="SendInfo.cs" />
     <Page Include="MainWindow.xaml">

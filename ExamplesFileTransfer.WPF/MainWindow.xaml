@@ -57,46 +57,13 @@
 				<TextBox Height="23" HorizontalAlignment="Left" Margin="205,2,0,0" Name="remotePort" VerticalAlignment="Top" Width="47" />
 				<Label Content="Port:" Height="28" HorizontalAlignment="Left" Margin="172,0,0,0" Name="label2" VerticalAlignment="Top" />-->
 				<Label Content="Remote IPs:" Height="28" HorizontalAlignment="Left" Margin="8,0,0,0" Name="labelRemoteIPs" VerticalAlignment="Top" RenderTransformOrigin="0.428,0.478" />
-				<ComboBox Margin="77,0,2,0" Name="remoteIPs" VerticalAlignment="Center" IsEditable="True" DropDownOpened="RemoteIPs_DropDownOpened">
+				<ComboBox Margin="77,0,2,0" Name="remoteIPs" VerticalAlignment="Center" IsEditable="True" KeyDown="RemoteIPs_KeyDown">
 					<ComboBox.ItemTemplate>
 						<DataTemplate>
-							<StackPanel Orientation="Horizontal">
-								<TextBlock Text="{Binding}" VerticalAlignment="Center"/>
-								<Button Content="-" Width="20" Height="20" Click="RemoveItem_Click" Margin="5,0,0,0"/>
-							</StackPanel>
+							<TextBlock Text="{Binding}" ToolTip="Right-click to delete" MouseRightButtonDown="RemoteIPs_MouseRightButtonDown"/>
 						</DataTemplate>
 					</ComboBox.ItemTemplate>
-					<ComboBox.ItemsPanel>
-						<ItemsPanelTemplate>
-							<StackPanel/>
-						</ItemsPanelTemplate>
-					</ComboBox.ItemsPanel>
-					<ComboBox.ContextMenu>
-						<ContextMenu>
-							<MenuItem Header="Add New Item" Click="AddNewItem_Click"/>
-						</ContextMenu>
-					</ComboBox.ContextMenu>
-					<ComboBox.Template>
-						<ControlTemplate TargetType="ComboBox">
-							<Grid>
-								<ToggleButton Name="ToggleButton" Grid.Column="2" Focusable="false" IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" ClickMode="Press"/>
-								<ContentPresenter Name="ContentSite" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" Margin="3,3,23,3" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-								<TextBox x:Name="PART_EditableTextBox" Style="{x:Null}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="3,3,23,3" Focusable="True" Background="Transparent" Visibility="Hidden" IsReadOnly="{TemplateBinding IsReadOnly}"/>
-								<Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-									<Grid Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
-										<Border x:Name="DropDownBorder" BorderThickness="1"/>
-										<ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True">
-											<StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
-										</ScrollViewer>
-									</Grid>
-								</Popup>
-							</Grid>
-						</ControlTemplate>
-					</ComboBox.Template>
 				</ComboBox>
-
-
-
 			</Grid>
 			<Grid Grid.Column="2">
 				<!--<CheckBox Content="Use Compression" Name="UseCompression" HorizontalAlignment="Left" Margin="0,5,0,0" VerticalAlignment="Top" Unchecked="UseCompression_Changed" Checked="UseCompression_Changed"/>-->
@@ -121,7 +88,7 @@
 		<Grid Grid.Row="3">
 			<Label Content="Received Files:" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Top"/>
 			<ScrollViewer Name ="fileScroller" Margin="0,25,0,0" >
-				<ListBox HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsSynchronizedWithCurrentItem="True" Name="lbReceivedFiles" ItemsSource="{Binding}" ItemTemplate="{StaticResource UserTemplate}" VerticalAlignment="Stretch" Background="#FFCFDCFF" />
+				<ListBox HorizontalContentAlignment="Stretch" IsSynchronizedWithCurrentItem="True" Name="lbReceivedFiles" ItemsSource="{Binding}" ItemTemplate="{StaticResource UserTemplate}" Background="#FFCFDCFF" />
 			</ScrollViewer>
 		</Grid>
 

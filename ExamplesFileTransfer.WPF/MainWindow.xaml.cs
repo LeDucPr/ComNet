@@ -29,9 +29,12 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace Examples.ExamplesFileTransfer.WPF
 {
@@ -205,22 +208,39 @@ namespace Examples.ExamplesFileTransfer.WPF
             if (ipsBox.SelectedItem is ComboBoxItem selectedItem)
                 Clipboard.SetText(selectedItem.Content.ToString());
         }
-        private void AddNewItem_Click(object sender, RoutedEventArgs e)
+
+        private void RemoteIPs_KeyDown(object sender, KeyEventArgs e)
         {
-            string newItem = "New Item"; // Hoặc bạn có thể mở một dialog để nhập giá trị mới
-            remoteIPs.Items.Add(newItem);
+            if (e.Key == Key.Enter)
+            {
+                ComboBox comboBox = sender as ComboBox;
+                if (comboBox != null && !string.IsNullOrWhiteSpace(comboBox.Text))
+                {
+                    if (!comboBox.Items.Contains(comboBox.Text))
+                    {
+                        comboBox.Items.Add(comboBox.Text);
+                    }
+                    comboBox.Text = string.Empty;
+                }
+            }
         }
-        private void RemoveItem_Click(object sender, RoutedEventArgs e)
+        private void RemoteIPs_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Button button && button.DataContext is string item)
-                remoteIPs.Items.Remove(item);
+            if (e.ClickCount == 1)
+            {
+                TextBlock textBlock = sender as TextBlock;
+                if (textBlock != null)
+                {
+                    string itemToDelete = textBlock.Text;
+                    if (!string.IsNullOrEmpty(itemToDelete))
+                    {
+                        remoteIPs.Items.Remove(itemToDelete);
+                    }
+                }
+            }
         }
-        private void RemoteIPs_DropDownOpened(object sender, EventArgs e)
-        {
-            // Thêm một mục mới với TextBox và Button khi ComboBox được mở
-            if (!remoteIPs.Items.Contains("Add New Item"))
-                remoteIPs.Items.Add("Add New Item");
-        }
+
+
 
         /// <summary>
         /// Khi nào đóng thì clear hết file
@@ -422,61 +442,94 @@ namespace Examples.ExamplesFileTransfer.WPF
                 //Disable the send and compression buttons
                 sendFileButton.IsEnabled = false;
                 //UseCompression.IsEnabled = false;
-
                 string filename = openDialog.FileName;
                 string selectedRemoteIP = remoteIPs.SelectedItem.ToString();
                 string[] ipPort = selectedRemoteIP.Split(':');
                 string remoteIP = ipPort[0];
                 string remotePort = ipPort[1];
-
-
                 UpdateSendProgress(0); //Set the send progress bar to 0
-                Task.Factory.StartNew(() => //Perform the send in a task so that we don't lock the GUI
+                FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+                //string shortFileName = System.IO.Path.GetFileName(filename);
+                Task.Factory.StartNew(() => SendFileAsync(filename, stream, remoteIP, remotePort));
+            }
+        }
+        private void SendFilesToAllRemoteIPs()
+        {
+            // Create an OpenFileDialog so that we can request the file to send
+            OpenFileDialog openDialog = new OpenFileDialog();
+            openDialog.Multiselect = false;
+            if (openDialog.ShowDialog() == true)
+            {
+                string filename = openDialog.FileName;
+                var remoteIPItems = remoteIPs.Items.Cast<string>().ToList();
+                UpdateSendProgress(0);
+                FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+                Parallel.ForEach(remoteIPItems, (selectedRemoteIP) =>
                 {
-                    try
-                    {
-                        FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-                        StreamTools.ThreadSafeStream safeStream = new StreamTools.ThreadSafeStream(stream);
-                        string shortFileName = System.IO.Path.GetFileName(filename);
-                        ConnectionInfo remoteInfo;
-                        try { remoteInfo = new ConnectionInfo(remoteIP, int.Parse(remotePort)); }
-                        catch (Exception) { throw new InvalidDataException("Failed to parse remote IP and port. Check and try again."); }
-                        Connection connection = TCPConnection.GetConnection(remoteInfo); // tạo kết nối 
-                        long sendChunkSizeBytes = (long)(stream.Length / 20.0) + 1; // phân mảnh
-                        long maxChunkSizeBytes = 500L * 1024L * 1024L; // kích thước tối đa cho một mảnh 
-                        if (sendChunkSizeBytes > maxChunkSizeBytes) sendChunkSizeBytes = maxChunkSizeBytes;
-                        long totalBytesSent = 0;
-                        do
-                        {
-                            long bytesToSend = (totalBytesSent + sendChunkSizeBytes < stream.Length ? sendChunkSizeBytes : stream.Length - totalBytesSent);
-                            StreamTools.StreamSendWrapper streamWrapper = new StreamTools.StreamSendWrapper(safeStream, totalBytesSent, bytesToSend); // đóng gói 
-                            long packetSequenceNumber;
-                            connection.SendObject("PartialFileData", streamWrapper, customOptions, out packetSequenceNumber);
-                            connection.SendObject("PartialFileDataInfo", new SendInfo(shortFileName, stream.Length, totalBytesSent, packetSequenceNumber), customOptions);
-                            totalBytesSent += bytesToSend; // lượng đã gửi 
-                            UpdateSendProgress((double)totalBytesSent / stream.Length);
-                        } while (totalBytesSent < stream.Length);
-                        GC.Collect(); // garbage collection
-                        AddLineToLog("Completed file send to '" + connection.ConnectionInfo.ToString() + "'.");
-                    }
-                    catch (CommunicationException) { AddLineToLog("Failed to complete send as connection was closed."); } // lỗi gửi thường do data quá lớn 
-                    catch (Exception ex)
-                    {
-                        if (!windowClosing && ex.GetType() != typeof(InvalidDataException)) // sự kiện khi đóng form 
-                        {
-                            AddLineToLog(ex.Message.ToString());
-                            LogTools.LogException(ex, "SendFileError");
-                        }
-                    }
-                    UpdateSendProgress(0); //Once the send is finished reset the send progress bar
-                    sendFileButton.Dispatcher.BeginInvoke(new Action(() => //Once complete enable the send button again
-                    {
-                        sendFileButton.IsEnabled = true;
-                        //UseCompression.IsEnabled = true;
-                    }));
+                    string[] ipPort = selectedRemoteIP.Split(':');
+                    string remoteIP = ipPort[0];
+                    string remotePort = ipPort[1];
+                    SendFileAsync(filename, stream, remoteIP, remotePort).Wait();
                 });
             }
         }
+        private Task SendFileAsync(string filename, Stream stream, string remoteIP, string remotePort)
+        {
+            UpdateSendProgress(0); // Set the send progress bar to 0
+            return Task.Factory.StartNew(() => // Perform the send in a task so that we don't lock the GUI
+            {
+                try
+                {
+                    string shortFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+                    // băm hash512 cho dtPkName
+                    using (SHA512 sha512 = SHA512.Create())
+                    {
+                        byte[] hashBytes = sha512.ComputeHash(Encoding.UTF8.GetBytes(shortFileName));
+                        StringBuilder sb = new StringBuilder();
+                        foreach (byte b in hashBytes)
+                            sb.Append(b.ToString("x2"));
+                        shortFileName = sb.ToString();
+                    }
+                    StreamTools.ThreadSafeStream safeStream = new StreamTools.ThreadSafeStream(stream);
+                    ConnectionInfo remoteInfo;
+                    try { remoteInfo = new ConnectionInfo(remoteIP, int.Parse(remotePort)); }
+                    catch (Exception) { throw new InvalidDataException("Failed to parse remote IP and port. Check and try again."); }
+                    Connection connection = TCPConnection.GetConnection(remoteInfo); // Create connection
+                    long sendChunkSizeBytes = (long)(stream.Length / 20.0) + 1; // Fragment size
+                    long maxChunkSizeBytes = 500L * 1024L * 1024L; // Max fragment size
+                    if (sendChunkSizeBytes > maxChunkSizeBytes) sendChunkSizeBytes = maxChunkSizeBytes;
+                    long totalBytesSent = 0;
+                    do
+                    {
+                        long bytesToSend = (totalBytesSent + sendChunkSizeBytes < stream.Length ? sendChunkSizeBytes : stream.Length - totalBytesSent);
+                        StreamTools.StreamSendWrapper streamWrapper = new StreamTools.StreamSendWrapper(safeStream, totalBytesSent, bytesToSend); // Wrap data
+                        long packetSequenceNumber;
+                        connection.SendObject("PartialFileData", streamWrapper, customOptions, out packetSequenceNumber);
+                        connection.SendObject("PartialFileDataInfo", new SendInfo(shortFileName, stream.Length, totalBytesSent, packetSequenceNumber), customOptions);
+                        totalBytesSent += bytesToSend; // Amount sent
+                        UpdateSendProgress((double)totalBytesSent / stream.Length);
+                    } while (totalBytesSent < stream.Length);
+                    GC.Collect(); // Garbage collection
+                    AddLineToLog("Completed file send to '" + connection.ConnectionInfo.ToString() + "'.");
+                }
+                catch (CommunicationException) { AddLineToLog("Failed to complete send as connection was closed."); } // Send error due to large data
+                catch (Exception ex)
+                {
+                    if (!windowClosing && ex.GetType() != typeof(InvalidDataException)) // Event when closing form
+                    {
+                        AddLineToLog(ex.Message.ToString());
+                        LogTools.LogException(ex, "SendFileError");
+                    }
+                }
+                UpdateSendProgress(0); // Once the send is finished reset the send progress bar
+                sendFileButton.Dispatcher.BeginInvoke(new Action(() => // Once complete enable the send button again
+                {
+                    sendFileButton.IsEnabled = true;
+                    // UseCompression.IsEnabled = true;
+                }));
+            });
+        }
+
         #endregion
     }
 }

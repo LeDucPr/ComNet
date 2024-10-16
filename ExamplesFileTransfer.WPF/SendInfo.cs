@@ -30,7 +30,7 @@ namespace Examples.ExamplesFileTransfer.WPF
     /// Information class used to associate incoming data with the correct ReceivedFile
     /// </summary>
     [ProtoContract]
-    class SendInfo
+    public class SendInfo
     {
         /// <summary>
         /// Corresponding filename

@@ -31,7 +31,7 @@ namespace Examples.ExamplesFileTransfer.WPF
     /// <summary>
     /// A local class which can be used to populate the WPF list box
     /// </summary>
-    class ReceivedFile : INotifyPropertyChanged
+    public class ReceivedFile : INotifyPropertyChanged
     {
         /// <summary>
         /// The name of the file
