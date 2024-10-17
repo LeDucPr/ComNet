@@ -17,6 +17,7 @@
 // under the License.
 // 
 
+using Examples.ExamplesFileTransfer.WPF.Queues;
 using Microsoft.Win32;
 using NetworkCommsDotNet;
 using NetworkCommsDotNet.Connections;
@@ -35,6 +36,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Collections.Specialized;
+using System.Data.Common;
 
 namespace Examples.ExamplesFileTransfer.WPF
 {
@@ -78,6 +81,8 @@ namespace Examples.ExamplesFileTransfer.WPF
         /// Boolean used for suppressing errors during GUI close
         /// </summary>
         static volatile bool windowClosing = false;
+
+        QueueManagement _queueManagement;
         #endregion
 
         public MainWindow()
@@ -86,6 +91,9 @@ namespace Examples.ExamplesFileTransfer.WPF
 
             //Set the listbox data context
             lbReceivedFiles.DataContext = receivedFiles;
+            receivedFiles.CollectionChanged += ReceivedFiles_CollectionChanged;
+            _queueManagement = new QueueManagement();
+
 
             //Start listening for new TCP connections
             StartListening();
@@ -130,7 +138,31 @@ namespace Examples.ExamplesFileTransfer.WPF
         }
         #endregion
 
+        #region Job
+        private void ReceivedFiles_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add)
+                ReceiveJob();
+        } 
+        private void ReceiveJob()
+        {
+            while (receivedFilesDict.Count > 0)
+            {
+                var job = receivedFilesDict.First().Value.First().Value;
+
+                if (receivedFilesDict.ContainsKey(job.SourceInfo))
+                        receivedFilesDict[fileToDelete.SourceInfo].Remove(fileToDelete.Filename);
+
+                    fileToDelete.Close();
+                AddLineToLog("Deleted file '" + fileToDelete.Filename + "' from '" + fileToDelete.SourceInfoStr + "'");
+                file = receivedFilesDict[connection.ConnectionInfo][info.Filename];
+            }
+        }
+        
+        #endregion
+
         #region GUI Events
+
         /// <summary>
         /// Nếu nhấn xóa file thì xóa file đó khỏi listbox
         /// </summary>
@@ -153,7 +185,6 @@ namespace Examples.ExamplesFileTransfer.WPF
 
                     fileToDelete.Close();
                 }
-
                 AddLineToLog("Deleted file '" + fileToDelete.Filename + "' from '" + fileToDelete.SourceInfoStr + "'");
             }
         }
@@ -365,7 +396,7 @@ namespace Examples.ExamplesFileTransfer.WPF
                             receivedFilesDict[connection.ConnectionInfo].Add(info.Filename, new ReceivedFile(info.Filename, connection.ConnectionInfo, info.TotalBytes));
                             AddNewReceivedItem(receivedFilesDict[connection.ConnectionInfo][info.Filename]);
                         }
-                        file = receivedFilesDict[connection.ConnectionInfo][info.Filename]; // chưa có thì thêm mới 
+                        file = receivedFilesDict[connection.ConnectionInfo][info.Filename]; // đá ra xong thì cho vào lại, tạo vùng cache mới 
                     }
                     else
                     {

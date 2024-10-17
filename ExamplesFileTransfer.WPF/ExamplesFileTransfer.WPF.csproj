@@ -40,6 +40,9 @@
     <ApplicationIcon>NetworkCommsLogo.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="protobuf-net">
       <HintPath>..\packages\protobuf-net.2.0.0.668\lib\net40\protobuf-net.dll</HintPath>
     </Reference>
@@ -62,7 +65,11 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Queues\GlobalQueue.cs" />
+    <Compile Include="Queues\Job.cs" />
+    <Compile Include="Queues\LocalQueue.cs" />
     <Compile Include="Queues\QueueBasic.cs" />
+    <Compile Include="Queues\QueueManagement.cs" />
     <Compile Include="ReceivedFile.cs" />
     <Compile Include="SendInfo.cs" />
     <Page Include="MainWindow.xaml">

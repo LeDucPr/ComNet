@@ -6,52 +6,50 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
 {
     public interface IQueueBasic
     {
-        void Enqueue(ReceivedFile rf, bool isReplace = true);
-        ReceivedFile Dequeue();
-        ReceivedFile Peek();
+        void Enqueue(Job job, bool isReplace = true);
+        Job Dequeue();
+        Job Peek();
         int Count();
         void Clear();
     }
     public class QueueBasic : IQueueBasic
     {
-        private List<ReceivedFile> _receivedFiles;
-        public List<ReceivedFile> ReceivedFiles => _receivedFiles;
-        public QueueBasic() { _receivedFiles = new List<ReceivedFile>(); }
-        public virtual void Enqueue(ReceivedFile rf, bool isReplace = true)
+        protected List<Job> _jobs;
+        public List<Job> Jobs => _jobs;
+        public QueueBasic() { _jobs = new List<Job>(); }
+        public virtual void Enqueue(Job job, bool isReplace = true)
         {
-            if (!isReplace && _receivedFiles.Any(rs => rs.Filename == rf.Filename))
-                throw new InvalidOperationException($"'{rf.Filename}' đã tồn tại trong hàng đợi.");
+            if (!isReplace && _jobs.Any(rs => rs.Name == job.Name))
+                throw new InvalidOperationException($"'{job.Name}' đã tồn tại trong hàng đợi.");
             else if (isReplace)
             {
-                int index = GetIndexObjectByName(rf.Filename);
-                if (index != -1)
-                    _receivedFiles[index] = rf;
-                else
-                    _receivedFiles.Add(rf);
+                int index = GetIndexJobByName(job.Name);
+                if (index != -1) _jobs[index] = job;
+                else _jobs.Add(job);
             }
         }
-        public virtual ReceivedFile Dequeue()
+        public virtual Job Dequeue()
         {
-            if (_receivedFiles.Count == 0)
+            if (_jobs.Count == 0)
                 throw new InvalidOperationException("Hàng đợi trống.");
-            ReceivedFile job = _receivedFiles[0];
-            _receivedFiles.RemoveAt(0);
+            Job job = _jobs[0];
+            _jobs.RemoveAt(0);
             return job;
         }
-        public virtual ReceivedFile Peek()
+        public virtual Job Peek()
         {
-            if (_receivedFiles.Count == 0)
+            if (_jobs.Count == 0)
                 throw new InvalidOperationException("Hàng đợi trống.");
-            return _receivedFiles[0];
+            return _jobs[0];
         }
-        public int Count() => _receivedFiles.Count;
-        public void Clear() => _receivedFiles.Clear();
-        public ReceivedFile GetObjectByName(string name) => _receivedFiles.FirstOrDefault(rs => rs.Filename == name);
-        public int GetIndexObjectByName(string name) => _receivedFiles.FindIndex(rs => rs.Filename == name);
-        public ReceivedFile this[int index]
+        public int Count() => _jobs.Count;
+        public void Clear() => _jobs.Clear();
+        public Job GetJobtByName(string name) => _jobs.FirstOrDefault(job => job.Name == name);
+        public int GetIndexJobByName(string name) => _jobs.FindIndex(job => job.Name == name);
+        public Job this[int index]
         {
-            get => _receivedFiles[index];
-            protected set => _receivedFiles[index] = value;
+            get => _jobs[index];
+            protected set => _jobs[index] = value;
         }
     }
 }
