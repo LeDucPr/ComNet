@@ -105,7 +105,10 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
                 if (_lQueue.Count() != 0)
                 {
                     if (_jobNeedToHandler.Count() != 0)
+                    {
                         _lQueue.SetJobToFirst(_jobNeedToHandler.First());
+                        _jobNeedToHandler.RemoveAt(0);
+                    }
                     if (_lQueue.Peek().DeviceId != _deviceId) // cần tính tới tường hợp Job spawn ra xếp trước thì không xử lý được
                     {
                         Job job = _lQueue.Dequeue();
