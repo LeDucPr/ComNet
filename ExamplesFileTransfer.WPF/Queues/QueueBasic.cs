@@ -46,6 +46,25 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         public void Clear() => _jobs.Clear();
         public Job GetJobtByName(string name) => _jobs.FirstOrDefault(job => job.Name == name);
         public int GetIndexJobByName(string name) => _jobs.FindIndex(job => job.Name == name);
+        /// <summary>
+        /// Đẩy job lên đầu hàng đợi (tưởng tác với các Jog đã được xử lý, cho xử lý rồi bốc đi luôn)
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="newJob"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void SetJobToFirst(string name)
+        {
+            int index = GetIndexJobByName(name);
+            if (index != -1)
+            {
+                Job job = _jobs[index];
+                _jobs.RemoveAt(index);
+                _jobs.Insert(0, job);
+            }
+            //else
+            //    throw new InvalidOperationException($"Job không tồn tại.");
+
+        }
         public Job this[int index]
         {
             get => _jobs[index];

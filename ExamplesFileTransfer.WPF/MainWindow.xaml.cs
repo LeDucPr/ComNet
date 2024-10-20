@@ -38,6 +38,10 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Collections.Specialized;
 using System.Data.Common;
+using System.Threading;
+using System.Runtime.InteropServices.ComTypes;
+using System.Runtime.InteropServices;
+using System.Linq.Expressions;
 
 namespace Examples.ExamplesFileTransfer.WPF
 {
@@ -91,10 +95,9 @@ namespace Examples.ExamplesFileTransfer.WPF
 
             //Set the listbox data context
             lbReceivedFiles.DataContext = receivedFiles;
-            receivedFiles.CollectionChanged += ReceivedFiles_CollectionChanged;
             _queueManagement = new QueueManagement();
-
-
+            _queueManagement.CancellationTokenSource = new CancellationTokenSource();
+            ReceiveJob();
             //Start listening for new TCP connections
             StartListening();
         }
@@ -139,26 +142,55 @@ namespace Examples.ExamplesFileTransfer.WPF
         #endregion
 
         #region Job
-        private void ReceivedFiles_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.Action == NotifyCollectionChangedAction.Add)
-                ReceiveJob();
-        } 
         private void ReceiveJob()
         {
-            while (receivedFilesDict.Count > 0)
+            Task.Run(() =>
             {
-                var job = receivedFilesDict.First().Value.First().Value;
-
-                if (receivedFilesDict.ContainsKey(job.SourceInfo))
-                        receivedFilesDict[fileToDelete.SourceInfo].Remove(fileToDelete.Filename);
-
-                    fileToDelete.Close();
-                AddLineToLog("Deleted file '" + fileToDelete.Filename + "' from '" + fileToDelete.SourceInfoStr + "'");
-                file = receivedFilesDict[connection.ConnectionInfo][info.Filename];
-            }
+                while (true)
+                {
+                    Parallel.ForEach(receivedFilesDict.Keys.ToList(), connectionInfo =>
+                    {
+                        lock (syncRoot)
+                        {
+                            if (receivedFilesDict.ContainsKey(connectionInfo))
+                            {
+                                List<ReceivedFile> receiverFiles = receivedFilesDict[connectionInfo].Values.ToList();
+                                foreach (var file in receiverFiles)
+                                {
+                                    //if (file.IsCompleted)
+                                    //{
+                                    try { _queueManagement.TransferJobToGlobalQueue(file.Job); }
+                                    catch (Exception) { } // không giải nén được (Job không đúng format thì bỏ qua)
+                                    AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr + "'"); // ghi log vào queue
+                                    AddLineToLog(_queueManagement.LQueueLog);
+                                    receivedFilesDict[file.SourceInfo].Remove(file.Filename);
+                                    AddLineToLog("-->> Delete: '" + file.Filename + "' receive from '" + file.SourceInfoStr + "'");
+                                    //}
+                                }
+                            }
+                        }
+                    });
+                    Thread.Sleep(1000);
+                }
+            });
         }
-        
+        private void SendJob()
+        {
+            //Parallel.ForEach(remoteIPs.Items.Cast<string>(), (remoteIPItem) =>
+            foreach (string remoteIPItem in new string[] { remoteIPs.SelectedItem.ToString() })
+            {
+                string[] ipPort = remoteIPItem.Split(':');
+                string remoteIP = ipPort[0];
+                string remotePort = ipPort[1];
+                UpdateSendProgress(0); //Set the send progress bar to 0
+                (string jobName, Stream jobStream) = _queueManagement.TransferJobToTCPSender_Job_Stream();
+                Task.Factory.StartNew(() => SendFileAsync(jobName, jobStream, remoteIP, remotePort)); // gửi song song không chờ đợi 
+                //SendFileAsync(jobName, jobStream, remoteIP, remotePort).Wait();
+            }
+            //});
+        }
+
+
         #endregion
 
         #region GUI Events
@@ -465,24 +497,32 @@ namespace Examples.ExamplesFileTransfer.WPF
         /// <param name="e"></param>
         private void SendFileButton_Click(object sender, RoutedEventArgs e)
         {
-            //Create an OpenFileDialog so that we can request the file to send
-            OpenFileDialog openDialog = new OpenFileDialog();
-            openDialog.Multiselect = false;
-            if (openDialog.ShowDialog() == true)
-            {
-                //Disable the send and compression buttons
-                sendFileButton.IsEnabled = false;
-                //UseCompression.IsEnabled = false;
-                string filename = openDialog.FileName;
-                string selectedRemoteIP = remoteIPs.SelectedItem.ToString();
-                string[] ipPort = selectedRemoteIP.Split(':');
-                string remoteIP = ipPort[0];
-                string remotePort = ipPort[1];
-                UpdateSendProgress(0); //Set the send progress bar to 0
-                FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-                //string shortFileName = System.IO.Path.GetFileName(filename);
-                Task.Factory.StartNew(() => SendFileAsync(filename, stream, remoteIP, remotePort));
-            }
+            ////Create an OpenFileDialog so that we can request the file to send
+            //OpenFileDialog openDialog = new OpenFileDialog();
+            //openDialog.Multiselect = false;
+            //if (openDialog.ShowDialog() == true)
+            //{
+            //    //Disable the send and compression buttons
+            //    sendFileButton.IsEnabled = false;
+            //    //UseCompression.IsEnabled = false;
+            //    string filename = openDialog.FileName;
+            //    string selectedRemoteIP = string.Empty;
+            //    if (string.IsNullOrEmpty(remoteIPs.SelectedItem.ToString()) && remoteIPs.Items.Count > 0)
+            //        selectedRemoteIP = remoteIPs.Items[0].ToString();
+            //    else if (remoteIPs.Items.Count > 0)
+            //        selectedRemoteIP = remoteIPs.SelectedItem.ToString();
+            //    if (!string.IsNullOrEmpty(selectedRemoteIP))
+            //    {
+            //        string[] ipPort = selectedRemoteIP.Split(':');
+            //        string remoteIP = ipPort[0];
+            //        string remotePort = ipPort[1];
+            //        UpdateSendProgress(0); //Set the send progress bar to 0
+            //        FileStream stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+            //        //string shortFileName = System.IO.Path.GetFileName(filename);
+            //        Task.Factory.StartNew(() => SendFileAsync(filename, stream, remoteIP, remotePort));
+            //    }
+            //}
+            SendJob();
         }
         private void SendFilesToAllRemoteIPs()
         {

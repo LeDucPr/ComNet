@@ -1,12 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Examples.ExamplesFileTransfer.WPF.Queues
 {
+    public enum JobStatus
+    {
+        Complete,
+        Error,
+        Initial,
+        Received,
+        Sent
+    }
     public interface IJobComponentBasic
     {
         DateTime SendTime { get; set; } // thời gian gửi job
@@ -17,8 +28,10 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         string Message { get; set; } // thông báo nếu có
         bool IsLocked { get; } // trạng thái khóa job
         bool IsHandled { get; set; }
+        string DeviceId { get; set; }
         IJobComponentBasic Clone();
     }
+    [Serializable]
     public class Job : IJobComponentBasic
     {
         ///// interface IJobComponentBasic
@@ -30,6 +43,7 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         public string Error { get; set; } = null;
         public string Message { get; set; } = null;
         public bool IsHandled { get; set; } = false;
+        public string DeviceId { get; set; } = string.Empty;
         public bool IsLocked
         {
             get
@@ -67,20 +81,57 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
             }
         }
         public IJobComponentBasic Clone() { return (Job)this.MemberwiseClone(); }
-        public override string ToString() => Newtonsoft.Json.JsonConvert.SerializeObject(this);
-        private static Job FromString(string jsonJob) => Newtonsoft.Json.JsonConvert.DeserializeObject<Job>(jsonJob);
-        public static Job Receive(string data)
+
+        private static Stream ToStream(Job job)
         {
-            Job job = FromString(data);
-            job.ReceiveTime = DateTime.Now;
-            return job;
+            var stream = new MemoryStream();
+            var formatter = new BinaryFormatter();
+            formatter.Serialize(stream, job);
+            stream.Position = 0; // Đặt lại vị trí của stream về đầu
+            return stream;
         }
-        public static string Send(Job job, bool isHandled = false) // json job
+        private static Job FromStream(Stream stream)
         {
-            job.SendTime = DateTime.Now;
-            job.ProcessTime = job.SendTime - job.ReceiveTime;
-            job.IsHandled = isHandled;
-            return job.ToString();
+            stream.Seek(0, SeekOrigin.Begin); // Đặt lại vị trí của stream về đầu
+            var formatter = new BinaryFormatter();
+            var a =  (Job)formatter.Deserialize(stream);
+            string gg = "";
+            return a;
+        }
+        public static Job Receive(Stream stream) => FromStream(stream);
+        public static Stream Send(Job job) => ToStream(job);
+        public void StatusChange(JobStatus status)
+        {
+            switch (status)
+            {
+                case JobStatus.Error:
+                    IsError = true;
+                    IsHandled = false;
+                    Error = "Error Handle";
+                    break;
+                case JobStatus.Complete:
+                    IsHandled = true;
+                    IsError = false;
+                    Error = null;
+                    break;
+                case JobStatus.Initial:
+                    IsHandled = false;
+                    IsError = false;
+                    Error = null;
+                    break;
+                case JobStatus.Received:
+                    ReceiveTime = DateTime.Now;
+                    IsHandled = true;
+                    IsError = false;
+                    Error = null;
+                    break;
+                case JobStatus.Sent:
+                    SendTime = DateTime.Now;
+                    ProcessTime = SendTime - ReceiveTime;
+                    break;
+                default:
+                    break;
+            }
         }
     }
 }

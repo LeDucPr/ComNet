@@ -26,6 +26,7 @@ using NetworkCommsDotNet;
 using System.ComponentModel;
 using System.IO;
 using Examples.ExamplesFileTransfer.WPF.Queues;
+using System.Windows.Markup;
 
 namespace Examples.ExamplesFileTransfer.WPF
 {
@@ -94,7 +95,7 @@ namespace Examples.ExamplesFileTransfer.WPF
         /// <summary>
         /// Job associated with handler
         /// </summary>
-        Job job;
+        public Job Job => Job.Receive(data);
 
         /// <summary>
         /// Event GUI update
@@ -114,12 +115,6 @@ namespace Examples.ExamplesFileTransfer.WPF
             this.SizeBytes = sizeBytes;
             //We create a file on disk so that we can receive large files
             data = new FileStream(filename, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 8 * 1024, FileOptions.DeleteOnClose);
-        }
-
-        public ReceivedFile(string jsonJob, ConnectionInfo sourceInfo)
-        {
-            Job job = Job.Receive(jsonJob);
-            this.SourceInfo = sourceInfo;
         }
 
         /// <summary>
