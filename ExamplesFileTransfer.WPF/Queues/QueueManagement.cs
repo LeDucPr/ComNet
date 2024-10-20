@@ -65,7 +65,7 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         {
             while (!cancellationToken.IsCancellationRequested || cancellationToken == default)
             {
-                if (_jobNeedToHandler.Count() < _maxJobsInLocalQueue && _gQueue.Count() > 0)
+                if (_lQueue.Count() < _maxJobsInLocalQueue && _gQueue.Count() > 0)
                 {
                     int count = _lQueue.Count();
                     var job = _gQueue.Dequeue();
@@ -159,7 +159,7 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
 
         public void TransferJobsFromGlobalToLocal()
         {// dùng cái này thì tắt task đi 
-            if (_jobNeedToHandler.Count() < _maxJobsInLocalQueue && _gQueue.Count() > 0)
+            if (_lQueue.Count() < _maxJobsInLocalQueue && _gQueue.Count() > 0)
             {
                 int count = _lQueue.Count();
                 var job = _gQueue.Dequeue();
@@ -221,7 +221,7 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
                 _gQueue.Enqueue(job);
                 _gQueueLogJobReceive.Add(job.Name);
             }
-            if (_gQueueLogJobReceive.Count() > _maxLog)
+            if (_gQueueLogJobReceive.Count() > _maxJobsInLocalQueue)
                 _gQueueLogJobReceive.RemoveAt(0);
         }
 
