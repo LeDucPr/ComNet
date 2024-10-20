@@ -78,7 +78,7 @@
 				<ColumnDefinition Width="*" />
 			</Grid.ColumnDefinitions>
 			<Grid Grid.Column="0">
-				<Button Content="Send File To Remote" HorizontalAlignment="Left" Margin="8,3,0,0" Name="sendFileButton" VerticalAlignment="Top" Height="25" Width="120" Click="SendFileButton_Click"/>
+				<Button Content="Send To Remote" HorizontalAlignment="Left" Margin="8,3,0,0" Name="sendFileButton" VerticalAlignment="Top" Height="25" Width="120" Click="SendFileButton_Click"/>
 			</Grid>
 			<Grid Grid.Column="1">
 				<ProgressBar Maximum="1" Name="sendProgress" HorizontalAlignment="Stretch" Height="15" Margin="0,8,8,0" VerticalAlignment="Top" Foreground="#FFFFDC00"/>
@@ -87,6 +87,8 @@
 
 		<Grid Grid.Row="3">
 			<Label Content="Received Files:" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Top"/>
+			<CheckBox Content="Auto send if handled" x:Name="btnAtSendIfHandled" HorizontalAlignment="Left" Margin="159,6,0,0" VerticalAlignment="Top" IsChecked="False"/>
+			<CheckBox Content="Auto send if spawned" x:Name="btnAtSendIfSpawned" HorizontalAlignment="Left" Margin="338,6,0,0" VerticalAlignment="Top" IsChecked="False"/>
 			<ScrollViewer Name ="fileScroller" Margin="0,25,0,0" >
 				<ListBox HorizontalContentAlignment="Stretch" IsSynchronizedWithCurrentItem="True" Name="lbReceivedFiles" ItemsSource="{Binding}" ItemTemplate="{StaticResource UserTemplate}" Background="#FFCFDCFF" />
 			</ScrollViewer>

@@ -5,6 +5,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Security.Policy;
 
 namespace Examples.ExamplesFileTransfer.WPF.Queues
 {
@@ -16,6 +18,8 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         public void AddTo_JobNeedToHandler(string jobName) { _jobNeedToHandler.Add(jobName); }
         private List<string> _gQueueLogJobReceive; // lưu lại các job nhận được từ global queue
         private const int _maxLog = 100;
+        private int _maxSubmissionCanSendForAJob = 5; // số lần gửi lại cho một job
+        public int MaxSubmissionCanSendForAJob { set => _maxSubmissionCanSendForAJob = value; get => _maxSubmissionCanSendForAJob; }
         public GlobalQueue GQueue => _gQueue;
         public LocalQueue LQueue => _lQueue;
         private int _maxJobsInLocalQueue = 5;
@@ -74,7 +78,10 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
                     if (_delay != 0)
                         Task.Delay(_delay).Wait();
                     if (count != _lQueue.Count())
+                    {
+                        AddTo_JobNeedToHandler(job.Name);
                         _lQueueLog = $"-->> (LocalQueue): {job.Name}";
+                    }
                 }
             }
         }
@@ -98,13 +105,13 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         /// Xử lý xong đẩy lại vào local queue theo kiến trúc mới 
         /// </summary>
         /// <param name="cancellationToken"></param>
-        private void ManagerHandler(CancellationToken cancellationToken)
+        private void ManagerHandler(CancellationToken cancellationToken, bool isPrioritizeReceiveJob = true)
         {
             while (!cancellationToken.IsCancellationRequested || cancellationToken == default)
             {
                 if (_lQueue.Count() != 0)
                 {
-                    if (_jobNeedToHandler.Count() != 0)
+                    if (_jobNeedToHandler.Count() != 0 && isPrioritizeReceiveJob)
                     {
                         _lQueue.SetJobToFirst(_jobNeedToHandler.First());
                         _jobNeedToHandler.RemoveAt(0);
@@ -157,33 +164,6 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         }
         #endregion
 
-        public void TransferJobsFromGlobalToLocal()
-        {// dùng cái này thì tắt task đi 
-            if (_lQueue.Count() < _maxJobsInLocalQueue && _gQueue.Count() > 0)
-            {
-                int count = _lQueue.Count();
-                var job = _gQueue.Dequeue();
-                if ((job?.IsHandled != null && !job.IsHandled) || !job.IsError)
-                    _lQueue.Enqueue(job);
-                if (_delay != 0)
-                    Task.Delay(_delay).Wait();
-                if (count != _lQueue.Count())
-                    _lQueueLog = $"-->> (LocalQueue): {job.Name}";
-            }
-        }
-        public void TransferJobsFromLocalToGlobal()
-        {// dùng cái này thì tắt task đi 
-            if (_lQueue.Count() > 0)
-            {
-                var job = _lQueue.Dequeue();
-
-                if ((job?.IsHandled != null || job.IsHandled) || job.IsError)
-                    _gQueue.Enqueue(job);
-                if (_delay != 0)
-                    Task.Delay(_delay).Wait();
-            }
-        }
-
         public Job TransferJobToTCPSender_Job()
         {
             if (_lQueue.Count() > 0)
@@ -224,6 +204,10 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
             if (_gQueueLogJobReceive.Count() > _maxJobsInLocalQueue)
                 _gQueueLogJobReceive.RemoveAt(0);
         }
+
+        public void SetJobToFirstInLocalQueue(string jobName) => _lQueue.SetJobToFirst(jobName);
+        public List<string> FindSpawnerJob() => _lQueue.Jobs.FindAll(x => x.DeviceId == _deviceId).Select(x => x.Name).ToList();
+        public List<string> FindHandlerJob() => _lQueue.Jobs.FindAll(x => x.DeviceId != _deviceId).Select(x => x.Name).ToList();
 
         public void Stop()
         {
