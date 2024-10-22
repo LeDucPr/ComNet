@@ -162,8 +162,8 @@ namespace Examples.ExamplesFileTransfer.WPF
                                     try
                                     {
                                         _queueManagement.TransferJobToGlobalQueue(file.Job);
-                                        AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr + "'"); // ghi log vào queue
-                                        AddLineToLog(_queueManagement.LQueueLog);
+                                        AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr + "'" + "   " + _queueManagement.LQueueLog); // ghi log vào queue
+                                        AddLineToLog("---- " + file.Job.Message);
                                         receivedFilesDict[file.SourceInfo].Remove(file.Filename);
                                         AddLineToLog("-->> Delete: '" + file.Filename + "' receive from '" + file.SourceInfoStr + "'");
                                     }
@@ -212,17 +212,19 @@ namespace Examples.ExamplesFileTransfer.WPF
                 lock (btnAtSendIfHandled)
                     bh = btnAtSendIfHandled.IsChecked.Value;
                 if (bh)
+                {
+                    //foreach (string handleJobName in _queueManagement.FindHandlerJob())
+                    //    _queueManagement.SetJobToFirstInLocalQueue(handleJobName);
+                    (string jobName, Stream jobStream) = _queueManagement.TransferJobToTCPSender_Job_Stream();
                     foreach (string remoteIPItem in remoteIPs.Items.Cast<string>().ToList())
                     {
                         string[] ipPort = remoteIPItem.Split(':');
                         string remoteIP = ipPort[0];
                         string remotePort = ipPort[1];
                         UpdateSendProgress(0); // Set the send progress bar to 0
-                        foreach (string handleJobName in _queueManagement.FindHandlerJob())
-                            _queueManagement.SetJobToFirstInLocalQueue(handleJobName);
-                        (string jobName, Stream jobStream) = _queueManagement.TransferJobToTCPSender_Job_Stream();
                         Task.Factory.StartNew(() => SendFileAsync(jobName, jobStream, remoteIP, remotePort)); // gửi song song không chờ đợi
                     }
+                }
             }
         }
 
@@ -247,8 +249,8 @@ namespace Examples.ExamplesFileTransfer.WPF
                         string remoteIP = ipPort[0];
                         string remotePort = ipPort[1];
                         UpdateSendProgress(0); // Set the send progress bar to 0
-                        foreach (string spawnJobName in _queueManagement.FindSpawnerJob())
-                            _queueManagement.SetJobToFirstInLocalQueue(spawnJobName);
+                        //foreach (string spawnJobName in _queueManagement.FindSpawnerJob())
+                        //    _queueManagement.SetJobToFirstInLocalQueue(spawnJobName);
                         (string jobName, Stream jobStream) = _queueManagement.TransferJobToTCPSender_Job_Stream();
                         Task.Factory.StartNew(() => SendFileAsync(jobName, jobStream, remoteIP, remotePort)); // gửi song song không chờ đợi
                     }

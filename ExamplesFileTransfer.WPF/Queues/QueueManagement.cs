@@ -22,7 +22,7 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         public int MaxSubmissionCanSendForAJob { set => _maxSubmissionCanSendForAJob = value; get => _maxSubmissionCanSendForAJob; }
         public GlobalQueue GQueue => _gQueue;
         public LocalQueue LQueue => _lQueue;
-        private int _maxJobsInLocalQueue = 5;
+        private int _maxJobsInLocalQueue = 500;
         private CancellationTokenSource _cancellationTokenSource; // hủy task khi tắt 
         public CancellationTokenSource CancellationTokenSource { set => _cancellationTokenSource = value; }
         private Task _transferGlobalToLocalTask;
@@ -73,8 +73,9 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
                 {
                     int count = _lQueue.Count();
                     var job = _gQueue.Dequeue();
-                    if ((job?.IsHandled != null && !job.IsHandled) || !job.IsError)
+                    //if ((job?.IsHandled != null && !job.IsHandled) || !job.IsError)
                         _lQueue.Enqueue((Job)job.Clone()); // clone để không ảnh hưởng đến việc xóa trong việc xóa tập tin nhận được 
+                    JobHandler(job);
                     if (_delay != 0)
                         Task.Delay(_delay).Wait();
                     if (count != _lQueue.Count())
@@ -109,9 +110,9 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         {
             while (!cancellationToken.IsCancellationRequested || cancellationToken == default)
             {
-                if (_lQueue.Count() != 0)
+                if (_jobNeedToHandler.Count() != 0)
                 {
-                    if (_jobNeedToHandler.Count() != 0 && isPrioritizeReceiveJob)
+                    if (isPrioritizeReceiveJob)
                     {
                         _lQueue.SetJobToFirst(_jobNeedToHandler.First());
                         _jobNeedToHandler.RemoveAt(0);
@@ -134,11 +135,27 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         /// <param name="cancellationToken"></param>
         private void ManagerSpawner(CancellationToken cancellationToken)
         {
-            for (int i = 0; i < 5; i++)
+            for (int i = 2; i < 6; i++)
             {
                 _lQueue.Enqueue(JobSpawner(i.ToString()));
                 Task.Delay(100).Wait(); // tránh spawn fff bị ghi đè job
             }
+        }
+        /// <summary>
+        /// Cho job vào global queue và lưu lại tên job đã nhận, xóa tên job cũ nếu vượt quá giới hạn
+        /// </summary>
+        /// <param name="job"></param>
+        public void TransferJobToGlobalQueue(Job job)
+        {
+            //if (_gQueueLogJobReceive.Contains(job.Name)) return;
+            //if (!(job.IsHandled || job.IsError) || job.DeviceId == _deviceId)
+            if (job.DeviceId != _deviceId)
+            {
+            }
+            _gQueue.Enqueue(job);
+            _gQueueLogJobReceive.Add(job.Name);
+            if (_gQueueLogJobReceive.Count() > _maxLog)
+                _gQueueLogJobReceive.RemoveAt(0);
         }
         #endregion 
 
@@ -148,11 +165,15 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
             string data = job.Data;
             if (int.TryParse(data, out int result))
             {
+                job.Message = $"{result} không phải là số nguyên tố";
                 for (int i = 2; i <= Math.Sqrt(result); i++)
                     if (result % i == 0)
                         return false;
+                job.Message = $"{result} là số nguyên tố";
                 return true;
             }
+            job.Message = "Dữ liệu không phải là số";
+            job.Error = "Lỗi định dạng";
             return false;
         }
         private Job JobSpawner(string data)
@@ -189,21 +210,6 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
             return (string.Empty, null);
         }
 
-        /// <summary>
-        /// Cho job vào global queue và lưu lại tên job đã nhận, xóa tên job cũ nếu vượt quá giới hạn
-        /// </summary>
-        /// <param name="job"></param>
-        public void TransferJobToGlobalQueue(Job job)
-        {
-            if (_gQueueLogJobReceive.Contains(job.Name)) return;
-            if (!job.IsHandled && !job.IsError)
-            {
-                _gQueue.Enqueue(job);
-                _gQueueLogJobReceive.Add(job.Name);
-            }
-            if (_gQueueLogJobReceive.Count() > _maxJobsInLocalQueue)
-                _gQueueLogJobReceive.RemoveAt(0);
-        }
 
         public void SetJobToFirstInLocalQueue(string jobName) => _lQueue.SetJobToFirst(jobName);
         public List<string> FindSpawnerJob() => _lQueue.Jobs.FindAll(x => x.DeviceId == _deviceId).Select(x => x.Name).ToList();
