@@ -164,8 +164,8 @@ namespace Examples.ExamplesFileTransfer.WPF
                                     {
                                         _queueManagement.TransferJobToGlobalQueue(file.Job);
                                         //AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr + "'" + "   " + _queueManagement.LQueueLog); // ghi log vào queue
-                                        AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr); // ghi quá tỉa log dễ bị văng
                                         Thread.Sleep(100);
+                                        AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr); // ghi quá tỉa log dễ bị văng
                                         AddLineToLog("---- " + file.Job.Message);
                                         receivedFilesDict[file.SourceInfo].Remove(file.Filename);
                                         AddLineToLog("-->> Delete: '" + file.Filename + "' receive from '" + file.SourceInfoStr + "'");

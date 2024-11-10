@@ -37,20 +37,21 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         // Device Param
         public int MaxClone => _gQueue.MaxCloneJob; // biến này để kiểm soát lượt gửi qua các máy khác nhau (chỉ áp dụng cho job chửa xử lý)
         private string _deviceId;
-        public string DeviceId
+        // lấy mã của thằng rsa để tăng tính ngẫu nhiên khi tạo id máy trên các cấu hình khác nhau 
+        public string DeviceId => _deviceId;
+
+        private string GenDeviceId()
         {
-            set // lấy mã của thằng rsa để tăng tính ngẫu nhiên khi tạo id máy trên các cấu hình khác nhau 
+            using (RSA rsa = RSA.Create())
             {
-                using (RSA rsa = RSA.Create())
+                byte[] randomBytes = new byte[32];
+                using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
                 {
-                    byte[] randomBytes = new byte[32];
-                    using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
-                    { rng.GetBytes(randomBytes); }
-                    byte[] encryptedBytes = rsa.Encrypt(randomBytes, RSAEncryptionPadding.OaepSHA256);
-                    _deviceId = Convert.ToBase64String(encryptedBytes);
+                    rng.GetBytes(randomBytes);
                 }
+                byte[] encryptedBytes = rsa.Encrypt(randomBytes, RSAEncryptionPadding.Pkcs1);
+                return Convert.ToBase64String(encryptedBytes);
             }
-            get => _deviceId;
         }
 
         // Unity Job Handler + Spawner 
@@ -58,11 +59,12 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
 
         public QueueManagement()
         {
-            _cancellationTokenSource = new CancellationTokenSource(); 
+            _cancellationTokenSource = new CancellationTokenSource();
             _gQueue = new GlobalQueue();
             _lQueue = new LocalQueue();
             _jobNeedToHandler = new List<string>();
             _gQueueLogJobReceive = new List<string>();
+            _deviceId = GenDeviceId();
             _transferGlobalToLocalTask = Task.Run(() => TransferJobsFromGlobalToLocal(_cancellationTokenSource.Token));
             // Kiến trúc thay đổi được truyền thẳng từ local queue sang TCP sender ????
             //_transferLocalToGlobalTask = Task.Run(() => TransferJobsFromLocalToGlobal(_cancellationTokenSource.Token)); 
@@ -124,7 +126,7 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
                         _lQueue.SetJobToFirst(_jobNeedToHandler.First());
                         _jobNeedToHandler.RemoveAt(0);
                     }
-                    //if (_lQueue.Peek().DeviceId != _deviceId) // cần tính tới tường hợp Job spawn ra xếp trước thì không xử lý được
+                    if (_lQueue.Peek().DeviceId != _deviceId) // cần tính tới tường hợp Job spawn ra xếp trước thì không xử lý được
                     {
                         Job job = _lQueue.Dequeue();
                         if (JobHandler(job))
@@ -157,6 +159,8 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         /// <param name="job"></param>
         public void TransferJobToGlobalQueue(Job job)
         {
+            if (job.DeviceId.Equals(_deviceId))
+                return;
             bool isReplace = false;
             if (_gQueueLogJobReceive.Contains(job.Name))
                 if (job.IsHandled)
@@ -168,6 +172,8 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
                 _jobNeedToHandler.Add(job.Name);
             if (_gQueueLogJobReceive.Count() > _maxLog)
                 _gQueueLogJobReceive.RemoveAt(0);
+            if (_lQueue.Count() < _maxJobsInLocalQueue)
+                _lQueue.Enqueue(job);
         }
         #endregion 
 
