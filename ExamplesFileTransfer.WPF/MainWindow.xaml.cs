@@ -82,8 +82,8 @@ namespace Examples.ExamplesFileTransfer.WPF
         /// </summary>
         static volatile bool windowClosing = false;
 
-        CancellationTokenSource _cctk;
-        QueueManagement _queueManagement;
+        private CancellationTokenSource _ccToken;
+        private QueueManagement _queueManagement;
         #endregion
 
         public MainWindow()
@@ -92,9 +92,10 @@ namespace Examples.ExamplesFileTransfer.WPF
 
             //Set the listbox data context
             lbReceivedFiles.DataContext = receivedFiles;
+            //var ccToken = new CancellationTokenSource();
+            //_queueManagement = new QueueManagement() { CancellationTokenSource = ccToken };
             _queueManagement = new QueueManagement();
             //_cctk = new CancellationTokenSource();
-            _queueManagement.CancellationTokenSource = new CancellationTokenSource();//_cctk;
             ReceiveJob();
             //Start listening for new TCP connections
             StartListening();
@@ -162,7 +163,9 @@ namespace Examples.ExamplesFileTransfer.WPF
                                     try
                                     {
                                         _queueManagement.TransferJobToGlobalQueue(file.Job);
-                                        AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr + "'" + "   " + _queueManagement.LQueueLog); // ghi log vào queue
+                                        //AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr + "'" + "   " + _queueManagement.LQueueLog); // ghi log vào queue
+                                        AddLineToLog("-->> (GlobalQueue): '" + file.Filename + "' from '" + file.SourceInfoStr); // ghi quá tỉa log dễ bị văng
+                                        Thread.Sleep(100);
                                         AddLineToLog("---- " + file.Job.Message);
                                         receivedFilesDict[file.SourceInfo].Remove(file.Filename);
                                         AddLineToLog("-->> Delete: '" + file.Filename + "' receive from '" + file.SourceInfoStr + "'");
@@ -379,6 +382,11 @@ namespace Examples.ExamplesFileTransfer.WPF
             {
                 foreach (ReceivedFile file in receivedFiles)
                     file.Close();
+                if (_ccToken != null)
+                {
+                    _ccToken.Cancel();
+                    _ccToken.Dispose();
+                }
             }
             windowClosing = true;
             NetworkComms.Shutdown();

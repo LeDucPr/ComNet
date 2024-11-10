@@ -67,6 +67,8 @@
     </ApplicationDefinition>
     <Compile Include="Queues\GlobalQueue.cs" />
     <Compile Include="Queues\Job.cs" />
+    <Compile Include="Queues\JobConfs\Space.cs" />
+    <Compile Include="Queues\JobConfs\UntGObj.cs" />
     <Compile Include="Queues\LocalQueue.cs" />
     <Compile Include="Queues\QueueBasic.cs" />
     <Compile Include="Queues\QueueManagement.cs" />

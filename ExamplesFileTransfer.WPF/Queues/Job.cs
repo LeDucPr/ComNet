@@ -67,18 +67,19 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
                 this.CreateJobParameters();
             }
         }
-        private void CreateJobParameters()
+        private void CreateJobParameters() // con này đá tên định danh cho khỏi nhầm lẫn
         {
             Name = DateTime.Now.ToString("yyyyMMddHHmmssfff");
             // băm hash512 cho dtPkName
-            using (SHA512 sha512 = SHA512.Create())
+            using (SHA256 sha256 = SHA256.Create())
             {
-                byte[] hashBytes = sha512.ComputeHash(Encoding.UTF8.GetBytes(Name));
+                byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(Name));
                 StringBuilder sb = new StringBuilder();
                 foreach (byte b in hashBytes)
                     sb.Append(b.ToString("x2"));
                 Name = sb.ToString();
             }
+            this.StatusChange(JobStatus.Initial);
         }
         public IJobComponentBasic Clone() { return (Job)this.MemberwiseClone(); }
 
@@ -94,9 +95,7 @@ namespace Examples.ExamplesFileTransfer.WPF.Queues
         {
             stream.Seek(0, SeekOrigin.Begin); // Đặt lại vị trí của stream về đầu
             var formatter = new BinaryFormatter();
-            var a =  (Job)formatter.Deserialize(stream);
-            string gg = "";
-            return a;
+            return (Job)formatter.Deserialize(stream);
         }
         public static Job Receive(Stream stream) => FromStream(stream);
         public static Stream Send(Job job) => ToStream(job);
